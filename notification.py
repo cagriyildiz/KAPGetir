@@ -5,8 +5,30 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
 
+import logging
 from time import sleep
-from threading import Timer
+
+
+ONE_DAY = 86400
+
+
+def get_previous_notification_order(driver):
+	element = driver.find_elements_by_css_selector('#noDisclosuresToShow:not(.ng-hide)')
+	previous_notifications_present = len(element) == 0
+	if (previous_notifications_present):
+		notification_order = driver.find_element_by_css_selector('.notifications-row > a').text
+	else
+		logging.info('LOG: no previous notification found')
+		notification_order = 0
+	logging.info('LOG: previous notification number: ', notification_order)
+	return notification_order
+
+
+def get_new_notifications(driver, previous_notification_number):
+	notification_list = driver.find_elements_by_tag_name('disclosure-list-item')
+	uppermost_notification_number = notification_list[0].get_attribute('item-order')
+	len = uppermost_notification_number - previous_notification_number
+	return notification_list[0:len]
 
 
 def print_notification(notification_number, notification_url, company_code):
@@ -18,33 +40,19 @@ def print_notification(notification_number, notification_url, company_code):
 
 def listen_notifications(driver):
     try:
-        new_notification = WebDriverWait(driver, 86400).until(
+        new_notification = WebDriverWait(driver, ONE_DAY).until(
             ec.visibility_of_element_located((By.CLASS_NAME, 'newNotifications'))
         )
-
-        try:
-            previous_notification_order = WebDriverWait(driver, 2).until(
-                ec.visibility_of_element_located((By.CSS_SELECTOR, '.notifications-row > a'))
-            ).text
-            print('previous notification number: ', previous_notification_order)
-        except TimeoutException:
-            previous_notification_order = 0
-            print('no previous notification found.')
-        finally:
-            ActionChains(driver).click(new_notification).perform()
-            sleep(2)
-
-        notification_list = driver.find_elements_by_tag_name('disclosure-list-item')
-        for notification in reversed(notification_list):
-            notification_order = notification.get_attribute('item-order')
-            if notification_order != previous_notification_order:
-                notification_id = notification.find_element_by_class_name('_12').get_attribute('href')
-                stock_code = notification.find_element_by_css_selector('._3 span').get_attribute('title')
-                print_notification(notification_order, notification_id, stock_code)
-            else:
-                break
+		previous_notification_order = get_previous_notification_order(driver)
+		ActionChains(driver).click(new_notification).perform()
+		#sleep(2)
+        notifications = get_new_notifications(driver, previous_notification_order)
+        for notification in reversed(notifications):
+			notification_id = notification.find_element_by_class_name('_12').get_attribute('href')
+			stock_code = notification.find_element_by_css_selector('._3 span').get_attribute('title')
+			print_notification(notification_order, notification_id, stock_code)
     except TimeoutException:
-        print('no new notification found in 24 hours.')
+        logging.info('LOG: no new notification found in 24 hours')
     finally:
         listen_notifications(driver)
 
@@ -53,22 +61,3 @@ web_driver = webdriver.Firefox()
 web_driver.get('http://www.kap.org.tr')
 
 listen_notifications(web_driver)
-
-'''
-filterButton = driver.find_element_by_id('Filtre')
-ActionChains(driver).click(filterButton).perform()
-
-rightArrow = WebDriverWait(driver, 2500).until(
-    EC.visibility_of_element_located((By.ID, 'RightButton'))
-)
-ActionChains(driver).move_to_element(rightArrow).click(rightArrow).perform()
-
-sleep(1)
-
-doFilterButton = WebDriverWait(driver, 2500).until(
-    EC.visibility_of_element_located((By.ID, 'disclosureFilterButton'))
-)
-
-#doFilterButton = driver.find_element_by_id('disclosureFilterButton')
-ActionChains(driver).move_to_element(doFilterButton).click(doFilterButton).perform()
-'''
