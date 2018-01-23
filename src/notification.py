@@ -28,7 +28,7 @@ def get_previous_notification_order(driver):
 def get_new_notifications(driver, previous_notification_number):
     notification_list = driver.find_elements_by_tag_name('disclosure-list-item')
     uppermost_notification_number = notification_list[0].get_attribute('item-order')
-    length = uppermost_notification_number - previous_notification_number
+    length = int(uppermost_notification_number) - int(previous_notification_number)
     return notification_list[0:length]
 
 
@@ -46,14 +46,12 @@ def listen_notifications(driver):
         )
         previous_notification_order = get_previous_notification_order(driver)
         ActionChains(driver).click(new_notification).perform()
-        # sleep(2)
         notifications = get_new_notifications(driver, previous_notification_order)
         for notification in reversed(notifications):
-            notification_order = notification[0].get_attribute('item-order')
+            notification_order = notification.get_attribute('item-order')
             notification_id = notification.find_element_by_class_name('_12').get_attribute('href')
             stock_code = notification.find_element_by_css_selector('._3 span').get_attribute('title')
             print_notification(notification_order, notification_id, stock_code)
-
     except TimeoutException:
         logging.info('LOG: no new notification found in 24 hours')
     finally:
