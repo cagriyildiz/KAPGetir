@@ -32,11 +32,26 @@ def get_new_notifications(driver, previous_notification_number):
     return notification_list[0:length]
 
 
-def print_notification(notification_number, notification_url, company_code):
+def get_notification_attributes(notification):
+    attribute_list = {
+        'Bildirim No': notification.get_attribute('item-order'),
+        'Tarih': notification.find_element_by_css_selector('._2').text,
+        'Kod': notification.find_element_by_css_selector('._3 span').get_attribute('title'),
+        'Sirket': notification.find_element_by_css_selector('._4 span').text,
+        'Tip': notification.find_element_by_css_selector('._5 span').text,
+        'Konu': notification.find_element_by_css_selector('._6 span').text,
+        'Ozet Bilgi': notification.find_element_by_css_selector('._7 span span').text,
+        'Ilgili Sirketler': notification.find_element_by_css_selector('._8 span').text,
+        'Bildirim': notification.find_element_by_class_name('_12').get_attribute('href')
+    }
+    return attribute_list
+
+
+def print_notification(notification_attributes):
     print('\nYeni bir bildirim var.')
-    print('Bildirim No: ', notification_number)
-    print('Bildirim URL: ', notification_url)
-    print('Hisse Kodu: ', company_code)
+    for k, v in notification_attributes.items():
+        if v:
+            print(k, ': ', v)
 
 
 def listen_notifications(driver):
@@ -48,10 +63,8 @@ def listen_notifications(driver):
         ActionChains(driver).click(new_notification).perform()
         notifications = get_new_notifications(driver, previous_notification_order)
         for notification in reversed(notifications):
-            notification_order = notification.get_attribute('item-order')
-            notification_id = notification.find_element_by_class_name('_12').get_attribute('href')
-            stock_code = notification.find_element_by_css_selector('._3 span').get_attribute('title')
-            print_notification(notification_order, notification_id, stock_code)
+            attributes = get_notification_attributes(notification)
+            print_notification(attributes)
     except TimeoutException:
         logging.info('LOG: no new notification found in 24 hours')
     finally:
